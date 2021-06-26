@@ -1,13 +1,12 @@
-use crate::hal as hal;
+use stm32f4xx_hal as hal;
 use crate::peripherals::*;
-use crate::hal::{
-    gpio::{gpioa, gpiob, gpioc, gpiod, Output, PushPull},
+use hal::{
     prelude::*,
-    stm32::{interrupt, Interrupt, Peripherals, TIM2},
-    timer::{Event, Timer},
+    stm32::Peripherals,
     delay::Delay,
     adc::config::AdcConfig,
 };
+use rtt_target::rprintln;
 
 pub fn init_all() -> BoardPeripherals {
     let channels = rtt_target::rtt_init! {
@@ -26,6 +25,7 @@ pub fn init_all() -> BoardPeripherals {
         }
     };
     rtt_target::set_print_channel(channels.up.0);
+    rprintln!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
     let cp = cortex_m::Peripherals::take().unwrap();
     let dp = Peripherals::take().unwrap();
@@ -71,14 +71,15 @@ pub fn init_all() -> BoardPeripherals {
             spi,
             cs: gpiod.pd2.into_push_pull_output()
         },
-        switches: Switches {
+        switches: Some(Switches {
             ah: gpioa.pa8.into_push_pull_output(),
             al: gpiob.pb13.into_push_pull_output(),
             bh: gpioa.pa9.into_push_pull_output(),
             bl: gpiob.pb14.into_push_pull_output(),
             ch: gpioa.pa10.into_push_pull_output(),
             cl: gpiob.pb15.into_push_pull_output()
-        },
+        }),
+        openloop: None,
         feedback: Feedback {
             v_a: gpioa.pa0.into_analog(),
             v_b: gpioa.pa1.into_analog(),

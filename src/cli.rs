@@ -1,8 +1,4 @@
 use crate::peripherals::BoardPeripherals;
-use crate::hal as hal;
-use hal::{
-    prelude::*,
-};
 use no_std_compat::prelude::v1::*;
 use rtt_target::{rprint, rprintln};
 use crate::vt100;
@@ -10,6 +6,7 @@ use embedded_hal::digital::v2::OutputPin;
 
 type Args<'a> = &'a mut core::str::SplitAsciiWhitespace<'a>;
 
+#[allow(unused_macros)]
 macro_rules! ok_or_return {
     ($e: expr, $message: expr) => {
         match $e {
@@ -71,6 +68,9 @@ pub fn process_input(bp: &mut BoardPeripherals) {
                         "sw" => {
                             switch_command(bp, &mut args);
                         }
+                        "swmode" => {
+                            switch_mode_command(bp, &mut args);
+                        }
                         _ => {
                             rprintln!("Unknown command: {}", cmd);
                         }
@@ -111,47 +111,90 @@ fn drv_command(bp: &mut BoardPeripherals, args: Args) {
 }
 
 fn switch_command(bp: &mut BoardPeripherals, args: Args) {
+    let switches = match &mut bp.switches {
+        Some(s) => s,
+        None => {
+            rprintln!("Manual control disabled");
+            return;
+        }
+    };
     let cmd = some_or_return!(args.next(), "sw ah/al/az bh/bl/bz ch/cl/cz");
     match cmd {
         "ah" => {
-            bp.switches.ah.set_high().ok();
-            bp.switches.al.set_low().ok();
+            switches.ah.set_high().ok();
+            switches.al.set_low().ok();
         }
         "al" => {
-            bp.switches.ah.set_low().ok();
-            bp.switches.al.set_high().ok();
+            switches.ah.set_low().ok();
+            switches.al.set_high().ok();
         }
         "az" => {
-            bp.switches.ah.set_low().ok();
-            bp.switches.al.set_low().ok();
+            switches.ah.set_low().ok();
+            switches.al.set_low().ok();
         }
 
         "bh" => {
-            bp.switches.bh.set_high().ok();
-            bp.switches.bl.set_low().ok();
+            switches.bh.set_high().ok();
+            switches.bl.set_low().ok();
         }
         "bl" => {
-            bp.switches.bh.set_low().ok();
-            bp.switches.bl.set_high().ok();
+            switches.bh.set_low().ok();
+            switches.bl.set_high().ok();
         }
         "bz" => {
-            bp.switches.bh.set_low().ok();
-            bp.switches.bl.set_low().ok();
+            switches.bh.set_low().ok();
+            switches.bl.set_low().ok();
         }
 
         "ch" => {
-            bp.switches.ch.set_high().ok();
-            bp.switches.cl.set_low().ok();
+            switches.ch.set_high().ok();
+            switches.cl.set_low().ok();
         }
         "cl" => {
-            bp.switches.ch.set_low().ok();
-            bp.switches.cl.set_high().ok();
+            switches.ch.set_low().ok();
+            switches.cl.set_high().ok();
         }
         "cz" => {
-            bp.switches.ch.set_low().ok();
-            bp.switches.cl.set_low().ok();
+            switches.ch.set_low().ok();
+            switches.cl.set_low().ok();
         }
         _ => unknown_command!(cmd)
+    }
+    command_executed!()
+}
+
+fn switch_mode_command(bp: &mut BoardPeripherals, args: Args) {
+    let cmd = some_or_return!(args.next(), "swmode manual/openloop");
+    match cmd {
+        "manual" => {
+            match bp.switches {
+                Some(_) => {
+                    rprintln!("Already in manual");
+                },
+                None => {
+                    rprintln!("Switching to manual");
+                    let openloop = bp.openloop.take().unwrap();
+                    let switches = openloop.deinit();
+                    bp.switches = Some(switches)
+                }
+            }
+        }
+        "openloop" => {
+            match bp.openloop {
+                Some(_) => {
+                    rprintln!("Already in openloop");
+                }
+                None => {
+                    rprintln!("Switching to openloop");
+                    let switches = bp.switches.take().unwrap();
+                    let openloop = crate::peripherals::OpenLoop::init(switches);
+                    bp.openloop = Some(openloop);
+                }
+            }
+        }
+        _ => {
+            unknown_command!(cmd)
+        }
     }
     command_executed!()
 }

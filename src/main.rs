@@ -8,15 +8,11 @@ mod observer;
 mod vt100;
 
 use panic_rtt_target as _;
-use stm32f4xx_hal as hal;
-use cortex_m_rt::entry;
-use rtt_target::rprintln;
 use embedded_hal::blocking::delay::DelayMs;
 
-#[entry]
+#[cortex_m_rt::entry]
 fn main() -> ! {
     let mut bp = init::init_all();
-    rprintln!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
     loop {
         observer::print_system_status(&mut bp);
