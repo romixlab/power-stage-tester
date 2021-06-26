@@ -6,6 +6,7 @@ mod init;
 mod cli;
 mod observer;
 mod vt100;
+mod openloop;
 
 use panic_rtt_target as _;
 use embedded_hal::blocking::delay::DelayMs;

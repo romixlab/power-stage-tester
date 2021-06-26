@@ -3,6 +3,8 @@ use no_std_compat::prelude::v1::*;
 use rtt_target::{rprint, rprintln};
 use crate::vt100;
 use embedded_hal::digital::v2::OutputPin;
+use btoi::{btoi, ParseIntegerError};
+use crate::openloop::Phase;
 
 type Args<'a> = &'a mut core::str::SplitAsciiWhitespace<'a>;
 
@@ -70,6 +72,9 @@ pub fn process_input(bp: &mut BoardPeripherals) {
                         }
                         "swmode" => {
                             switch_mode_command(bp, &mut args);
+                        }
+                        "ol" => {
+                            openloop_command(bp, &mut args);
                         }
                         _ => {
                             rprintln!("Unknown command: {}", cmd);
@@ -187,14 +192,48 @@ fn switch_mode_command(bp: &mut BoardPeripherals, args: Args) {
                 None => {
                     rprintln!("Switching to openloop");
                     let switches = bp.switches.take().unwrap();
-                    let openloop = crate::peripherals::OpenLoop::init(switches);
+                    let openloop = crate::openloop::OpenLoop::init(bp.clocks.sysclk(), switches);
                     bp.openloop = Some(openloop);
                 }
             }
         }
-        _ => {
-            unknown_command!(cmd)
+        _ => unknown_command!(cmd)
+    }
+    command_executed!()
+}
+
+fn openloop_command(bp: &mut BoardPeripherals, args: Args) {
+    let openloop = match &mut bp.openloop {
+        Some(openloop) => openloop,
+        None => {
+            rprintln!("Not in openloop mode, swmode openloop first");
+            return;
         }
+    };
+    let cmd = some_or_return!(args.next(), "ol manual a/b/c duty 0-100 / sine freq");
+    match cmd {
+        "manual" => {
+            let phase = some_or_return!(args.next(), "choose phase a/b/c");
+            let duty = some_or_return!(args.next(), "duty (0-100)");
+            let duty: Result<u8, ParseIntegerError> = btoi(duty.as_bytes());
+            let duty = ok_or_return!(duty, "wrong number");
+            match phase {
+                "a" => {
+                    openloop.update_duty(Phase::A, duty);
+                },
+                "b" => {
+                    openloop.update_duty(Phase::B, duty);
+                },
+                "c" => {
+                    openloop.update_duty(Phase::C, duty);
+                }
+                _ => unknown_command!(phase)
+            }
+        }
+        "sine" => {
+
+        }
+        _ => unknown_command!(cmd)
     }
     command_executed!()
 }

@@ -11,7 +11,7 @@ cortex-m = "0.7"
 cortex-m-rt = "0.6"
 rtt-target = { version = "0.3.1", features = ["cortex-m"] }
 panic-rtt-target = { version = "0.1.2", features = ["cortex-m"] }
-#btoi = { version = "0.4.2", default-features = false }
+btoi = { version = "0.4.2", default-features = false }
 no-std-compat = "0.4.1"
 bitbang-hal = "0.3.2"
 
